@@ -2,35 +2,105 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-// Colores del juego
-const PRIMARY_COLOR = '#FF6B9D';
+// Colores vibrantes para el icono
+const COLORS = {
+    primary: '#FF6B9D',      // Rosa fuerte
+    secondary: '#FF8FAB',     // Rosa claro
+    highlight: '#FFB6C1',    // Rosa pastel
+    accent: '#FFE66D',       // Amarillo dorado
+    dark: '#C44569'          // Rosa oscuro
+};
+
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+}
+
+const darkRgb = hexToRgb(COLORS.dark);
+const accentRgb = hexToRgb(COLORS.accent);
 
 function createPngBuffer(size) {
     const width = size;
     const height = size;
     
-    // Crear datos de píxeles
     const rawData = [];
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = (width / 2) - 2;
     
-    // Convertir color hex a RGB
-    const r = parseInt(PRIMARY_COLOR.slice(1, 3), 16);
-    const g = parseInt(PRIMARY_COLOR.slice(3, 5), 16);
-    const b = parseInt(PRIMARY_COLOR.slice(5, 7), 16);
+    // Colores RGB
+    const primary = hexToRgb(COLORS.primary);
+    const highlight = hexToRgb(COLORS.highlight);
     
     for (let y = 0; y < height; y++) {
         rawData.push(0); // Filter byte
         for (let x = 0; x < width; x++) {
             const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+            
             if (dist <= radius) {
-                const factor = Math.max(0.5, 1 - (dist / radius) * 0.5);
-                rawData.push(Math.floor(r * factor));
-                rawData.push(Math.floor(g * factor));
-                rawData.push(Math.floor(b * factor));
+                // Gradiente radial para dar volumen
+                const normDist = dist / radius;
+                
+                // Brillo principal en la parte superior izquierda
+                const lightX = centerX - radius * 0.35;
+                const lightY = centerY - radius * 0.35;
+                const lightDist = Math.sqrt((x - lightX) ** 2 + (y - lightY) ** 2);
+                const lightFactor = Math.max(0, 1 - lightDist / (radius * 0.6));
+                
+                // Color base con gradiente
+                let r = primary.r * (1 - normDist * 0.3) + highlight.r * normDist * 0.3;
+                let g = primary.g * (1 - normDist * 0.3) + highlight.g * normDist * 0.3;
+                let b = primary.b * (1 - normDist * 0.3) + highlight.b * normDist * 0.3;
+                
+                // Añadir brillo (reflejo)
+                r = Math.min(255, r + lightFactor * 80);
+                g = Math.min(255, g + lightFactor * 80);
+                b = Math.min(255, b + lightFactor * 80);
+                
+                // Reflejo ovalado en la parte superior
+                const ellipseX = centerX - radius * 0.3;
+                const ellipseY = centerY - radius * 0.35;
+                const ellipseRx = radius * 0.25;
+                const ellipseRy = radius * 0.15;
+                const ellipseDist = Math.sqrt(
+                    ((x - ellipseX) / ellipseRx) ** 2 + 
+                    ((y - ellipseY) / ellipseRy) ** 2
+                );
+                if (ellipseDist <= 1) {
+                    const alpha = (1 - ellipseDist) * 0.5;
+                    r = r * (1 - alpha) + 255 * alpha;
+                    g = g * (1 - alpha) + 255 * alpha;
+                    b = b * (1 - alpha) + 255 * alpha;
+                }
+                
+                // Estrellitas doradas decorativas
+                const sparkle1 = { x: centerX + radius * 0.55, y: centerY - radius * 0.25, r: size * 0.05 };
+                const d1 = Math.sqrt((x - sparkle1.x) ** 2 + (y - sparkle1.y) ** 2);
+                if (d1 < sparkle1.r) {
+                    const alpha = (1 - d1 / sparkle1.r);
+                    r = r * (1 - alpha) + accentRgb.r * alpha;
+                    g = g * (1 - alpha) + accentRgb.g * alpha;
+                    b = b * (1 - alpha) + accentRgb.b * alpha;
+                }
+                
+                // Borde del globo (más oscuro)
+                if (dist > radius - 3) {
+                    const edgeAlpha = (dist - (radius - 3)) / 3;
+                    r = r * (1 - edgeAlpha) + darkRgb.r * edgeAlpha;
+                    g = g * (1 - edgeAlpha) + darkRgb.g * edgeAlpha;
+                    b = b * (1 - edgeAlpha) + darkRgb.b * edgeAlpha;
+                }
+                
+                rawData.push(Math.min(255, Math.floor(r)));
+                rawData.push(Math.min(255, Math.floor(g)));
+                rawData.push(Math.min(255, Math.floor(b)));
                 rawData.push(255);
             } else {
+                // Fondo transparente
                 rawData.push(0, 0, 0, 0);
             }
         }
@@ -38,18 +108,16 @@ function createPngBuffer(size) {
     
     const compressed = zlib.deflateSync(Buffer.from(rawData), { level: 9 });
     
-    // Construir PNG
     const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
     
-    // IHDR
     const ihdrData = Buffer.alloc(13);
     ihdrData.writeUInt32BE(width, 0);
     ihdrData.writeUInt32BE(height, 4);
-    ihdrData[8] = 8;  // bit depth
-    ihdrData[9] = 6;  // color type RGBA
-    ihdrData[10] = 0; // compression
-    ihdrData[11] = 0; // filter
-    ihdrData[12] = 0; // interlace
+    ihdrData[8] = 8;
+    ihdrData[9] = 6;
+    ihdrData[10] = 0;
+    ihdrData[11] = 0;
+    ihdrData[12] = 0;
     
     const ihdr = createChunk('IHDR', ihdrData);
     const idat = createChunk('IDAT', compressed);
@@ -90,7 +158,7 @@ function crc32(buffer) {
 }
 
 function generateIcons() {
-    console.log('🎨 Generando iconos para Android...\n');
+    console.log('🎨 Generando iconos animados y lindos...\n');
     
     const resDir = path.join('android', 'app', 'src', 'main', 'res');
     
@@ -113,47 +181,8 @@ function generateIcons() {
         console.log(`   ✅ ${folder}/ic_launcher.png (${size}x${size})`);
     }
     
-    // Crear drawable para foreground
-    const drawableDir = path.join(resDir, 'drawable');
-    if (!fs.existsSync(drawableDir)) {
-        fs.mkdirSync(drawableDir, { recursive: true });
-    }
-    
-    // Icono foreground más grande (108x108 para adaptive icon)
-    const fgPng = createPngBuffer(108);
-    fs.writeFileSync(path.join(drawableDir, 'ic_launcher_foreground.png'), fgPng);
-    console.log(`   ✅ drawable/ic_launcher_foreground.png`);
-    
-    // Adaptive icon para Android 8+
-    const anydpiDir = path.join(resDir, 'mipmap-anydpi-v26');
-    if (!fs.existsSync(anydpiDir)) {
-        fs.mkdirSync(anydpiDir, { recursive: true });
-    }
-    
-    const adaptiveXml = `<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@drawable/ic_launcher_foreground.png"/>
-</adaptive-icon>`;
-    
-    fs.writeFileSync(path.join(anydpiDir, 'ic_launcher.xml'), adaptiveXml);
-    console.log(`   ✅ mipmap-anydpi-v26/ic_launcher.xml`);
-    
-    // Colores
-    const valuesDir = path.join(resDir, 'values');
-    if (!fs.existsSync(valuesDir)) {
-        fs.mkdirSync(valuesDir, { recursive: true });
-    }
-    
-    const colorsXml = `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_launcher_background">#1a1a2e</color>
-</resources>`;
-    
-    fs.writeFileSync(path.join(valuesDir, 'colors.xml'), colorsXml);
-    console.log(`   ✅ values/colors.xml`);
-    
     console.log('\n✅ Iconos generados correctamente!');
+    console.log('   🎈 Globo con gradiente, brillo y estrella dorada');
 }
 
 generateIcons();
