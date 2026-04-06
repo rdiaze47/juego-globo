@@ -29,22 +29,6 @@ El globo puede explotar en cualquier momento entre 1.5x y 5x su tamaño original
 
 Simplemente abrir `index.html` en cualquier navegador moderno.
 
-### Compilar para Android (APK)
-
-Requiere **Java JDK 17** y **Android Studio**:
-
-```bash
-# Instalar dependencias
-npm install
-
-# Sincronizar con Android
-npx cap sync android
-
-# Compilar APK
-npx cap build android
-```
-
-El APK se generará en: `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ## 📁 Estructura del proyecto
 
@@ -77,10 +61,6 @@ El juego incluye:
 ## 🤝 Contribuir
 
 ¡Sentite libre de forkear el proyecto y hacer tus propias modificaciones!
-
-## �Licencia
-
-MIT License -随意 usar, modificar y distribuir.
 
 ---
 
