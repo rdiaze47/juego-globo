@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build outputs
 android/app/build/
@@ -19,6 +18,3 @@ Thumbs.db
 
 # Logs
 *.log
-
-# Cache
-.cache/

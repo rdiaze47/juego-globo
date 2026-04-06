@@ -1,5 +1,9 @@
 {
   "appId": "com.unglobo.app",
-  "appName": "UnGlobo",
-  "webDir": "."
+  "appName": "UnGlobo: Risk It!",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true
+  }
 }
